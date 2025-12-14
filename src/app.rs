@@ -90,6 +90,8 @@ impl Mbash {
     }
 
     fn handle_input(&mut self, input_line: &str) {
+        debug!(self.logger, "Received input '{}'.", input_line);
+
         let parts: Vec<&str> = input_line.split_whitespace().collect();
         if parts.is_empty() {
             debug!(
@@ -125,6 +127,7 @@ impl Mbash {
     }
 
     fn execute_internal_command(&mut self, command_name: &str, args: &[&str]) {
+        debug!(self.logger, "Received internal '{}' command.", command_name);
         if command_name == "init" {
             helper_functions::attempt_create_file(IGNORE_FILE_NAME);
             helper_functions::attempt_create_file(TRACKING_FILE_NAME);
@@ -132,14 +135,11 @@ impl Mbash {
     }
 
     fn execute_external_command(&mut self, command_name: &str, args: &[&str]) {
+        debug!(self.logger, "Received external '{}' command.", command_name);
+
         if command_name.starts_with("cd") {
             self.handle_cd_command(args);
             return;
-        }
-
-        debug!(self.logger, "{}", command_name);
-        for arg in args {
-            debug!(self.logger, "{}", arg);
         }
 
         let mut command = Command::new(command_name);
