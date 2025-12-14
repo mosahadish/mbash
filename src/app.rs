@@ -1,8 +1,5 @@
-use logger::{Logger, debug, error, stdout_logger::StdoutLogger};
-use std::{
-    env::set_current_dir,
-    process::{Command, exit},
-};
+use logger::{Logger, debug, error, info};
+use std::process::{Command};
 
 use crate::helper_functions;
 use std::{
@@ -22,6 +19,8 @@ pub struct Mbash {
     exiting: Arc<AtomicBool>,
     current_path: PathBuf,
     logger: Box<dyn Logger>,
+    internal_command_prefix: &'static str,
+    exit_command: &'static str,
 }
 
 impl Mbash {
@@ -30,6 +29,8 @@ impl Mbash {
             exiting: Arc::new(AtomicBool::new(false)),
             current_path: PathBuf::new(),
             logger: logger,
+            internal_command_prefix: "m",
+            exit_command: "exit",
         }
     }
 
@@ -69,20 +70,39 @@ impl Mbash {
             match read_result {
                 Ok(_) => {
                     let command_line = input.trim();
-                    if command_line == "exit" {
+                    if command_line.is_empty() {
+                        debug!(self.logger, "User input is empty.");
+                        continue;
+                    }
+
+                    let parts: Vec<&str> = command_line.split_whitespace().collect();
+                    if parts.is_empty() {
+                        debug!(
+                            self.logger,
+                            "Splitting the input using whitespaces resulted in an empty vector."
+                        );
+                        return;
+                    }
+
+                    let first_word = parts[0];
+                    if first_word == self.internal_command_prefix {
+                        debug!(self.logger, "Received an internal command.");
+                        continue;
+                    }
+
+                    let command_name = parts[0];
+                    let args = &parts[1..];
+
+                    if command_line == self.exit_command {
                         self.exit();
+                        info!(
+                            self.logger,
+                            "Received '{}' command, exiting mbash.", self.exit_command
+                        );
                         break;
                     }
 
-                    if command_line.starts_with("cd") {
-                        self.handle_cd_command(command_line);
-                        continue;
-                    }
-                    if command_line.is_empty() {
-                        continue;
-                    }
-
-                    self.execute_external_command(command_line);
+                    self.execute_external_command(command_name, args);
                 }
                 Err(e) => {
                     error!(
@@ -96,14 +116,16 @@ impl Mbash {
         }
     }
 
-    fn execute_external_command(&self, command_line: &str) {
-        let parts: Vec<&str> = command_line.split_whitespace().collect();
-        if parts.is_empty() {
+    fn execute_external_command(&mut self, command_name: &str, args: &[&str]) {
+        if command_name.starts_with("cd") {
+            self.handle_cd_command(args);
             return;
         }
 
-        let command_name = parts[0];
-        let args = &parts[1..];
+        debug!(self.logger, "{}", command_name);
+        for arg in args {
+            debug!(self.logger, "{}", arg);
+        }
 
         let mut command = Command::new(command_name);
         command.args(args);
@@ -115,7 +137,13 @@ impl Mbash {
                         self.logger,
                         "Command '{}' failed with status: {}", command_name, status
                     );
+                    return;
                 }
+
+                debug!(
+                    self.logger,
+                    "Command '{} suceeeded with status '{}'.", command_name, status
+                );
             }
             Err(e) => {
                 error!(
@@ -126,8 +154,8 @@ impl Mbash {
         }
     }
 
-    fn handle_cd_command(&mut self, command_line: &str) {
-        let new_dir = &command_line[3..].trim();
+    fn handle_cd_command(&mut self, args: &[&str]) {
+        let new_dir = &args[0];
 
         if new_dir.is_empty() {
             debug!(
