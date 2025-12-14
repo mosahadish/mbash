@@ -1,5 +1,5 @@
 use logger::{Logger, debug, error, info};
-use std::process::{Command};
+use std::process::Command;
 
 use crate::helper_functions;
 use std::{
@@ -12,8 +12,8 @@ use std::{
     },
 };
 
-const TRACKING_FILE_PATH: &str = ".mtracking";
-const IGNORE_FILE_PATH: &str = ".mignoring";
+const TRACKING_FILE_NAME: &str = ".mtracking";
+const IGNORE_FILE_NAME: &str = ".mignoring";
 
 pub struct Mbash {
     exiting: Arc<AtomicBool>,
@@ -36,14 +36,14 @@ impl Mbash {
 
     pub fn setup(&mut self) {
         self.set_current_dir();
-        self.load_file(TRACKING_FILE_PATH);
-        self.load_file(IGNORE_FILE_PATH);
+        self.load_file(TRACKING_FILE_NAME);
+        self.load_file(IGNORE_FILE_NAME);
     }
 
     fn set_current_dir(&mut self) {
         let current_dir_result = env::current_dir();
         match current_dir_result {
-            Ok(path) => self.current_path = path,
+            Ok(path) => self.current_path = path, 
             Err(e) => {
                 error!(self.logger, "Failed to fetch current directory path. {}", e);
                 self.exit();
