@@ -1,5 +1,5 @@
-use logger::{Logger, error, stdout_logger::StdoutLogger};
-use std::{env::set_current_dir, process::{Command, exit}};
+use logger::{Logger, debug, error, info};
+use std::process::{Command};
 
 use crate::helper_functions;
 use std::{
@@ -19,6 +19,8 @@ pub struct Mbash {
     exiting: Arc<AtomicBool>,
     current_path: PathBuf,
     logger: Box<dyn Logger>,
+    internal_command_prefix: &'static str,
+    exit_command: &'static str,
 }
 
 impl Mbash {
@@ -27,6 +29,8 @@ impl Mbash {
             exiting: Arc::new(AtomicBool::new(false)),
             current_path: PathBuf::new(),
             logger: logger,
+            internal_command_prefix: "m",
+            exit_command: "exit",
         }
     }
 
@@ -50,77 +54,127 @@ impl Mbash {
     pub fn run(&mut self) {
         while !self.exiting.load(Ordering::Relaxed) {
             print!("mbash@ {}: ", self.current_path.display());
-            io::stdout().flush().expect("Failed to flush stdout");
+
+            let flush_result = io::stdout().flush();
+            match flush_result {
+                Ok(_) => (),
+                Err(e) => {
+                    error!(self.logger, "Flush failed due to an error {}", e);
+                    continue;
+                }
+            }
 
             let mut input = String::new();
 
-            io::stdin()
-                .read_line(&mut input)
-                .expect("Failed to read line");
+            let read_result = io::stdin().read_line(&mut input);
+            match read_result {
+                Ok(_) => {
+                    let command_line = input.trim();
+                    if command_line.is_empty() {
+                        debug!(self.logger, "User input is empty.");
+                        continue;
+                    }
 
-            let command_line = input.trim();
-            if command_line == "exit" {
-                self.exit();
-                break;
-            }
+                    let parts: Vec<&str> = command_line.split_whitespace().collect();
+                    if parts.is_empty() {
+                        debug!(
+                            self.logger,
+                            "Splitting the input using whitespaces resulted in an empty vector."
+                        );
+                        return;
+                    }
 
-            if command_line.starts_with("cd") {
-                self.handle_cd_command(command_line);
-                continue;
-            }
-            if command_line.is_empty() {
-                continue; // Skip empty input
-            }
+                    let first_word = parts[0];
+                    if first_word == self.internal_command_prefix {
+                        debug!(self.logger, "Received an internal command.");
+                        continue;
+                    }
 
-            self.execute_external_command(command_line);
+                    let command_name = parts[0];
+                    let args = &parts[1..];
+
+                    if command_line == self.exit_command {
+                        self.exit();
+                        info!(
+                            self.logger,
+                            "Received '{}' command, exiting mbash.", self.exit_command
+                        );
+                        break;
+                    }
+
+                    self.execute_external_command(command_name, args);
+                }
+                Err(e) => {
+                    error!(
+                        self.logger,
+                        "Failed to read user input due to an error '{}'.", e
+                    );
+
+                    continue;
+                }
+            }
         }
     }
 
-    fn execute_external_command(&self, command_line: &str) {
-        let parts: Vec<&str> = command_line.split_whitespace().collect();
-        if parts.is_empty() {
+    fn execute_external_command(&mut self, command_name: &str, args: &[&str]) {
+        if command_name.starts_with("cd") {
+            self.handle_cd_command(args);
             return;
         }
 
-        let command_name = parts[0];
-        let args = &parts[1..];
+        debug!(self.logger, "{}", command_name);
+        for arg in args {
+            debug!(self.logger, "{}", arg);
+        }
 
         let mut command = Command::new(command_name);
         command.args(args);
 
-        println!("Running command: '{}' with args: {:?}", command_name, args);
-
         match command.status() {
             Ok(status) => {
                 if !status.success() {
-                    eprintln!("Command '{}' failed with status: {}", command_name, status);
+                    error!(
+                        self.logger,
+                        "Command '{}' failed with status: {}", command_name, status
+                    );
+                    return;
                 }
+
+                debug!(
+                    self.logger,
+                    "Command '{} suceeeded with status '{}'.", command_name, status
+                );
             }
             Err(e) => {
-                // This usually happens if the command name itself wasn't found (e.g., 'lst' instead of 'ls')
-                eprintln!("Failed to execute command '{}': {}", command_name, e);
+                error!(
+                    self.logger,
+                    "Failed to execute command '{}': {}", command_name, e
+                );
             }
         }
     }
 
-    fn handle_cd_command(&mut self, command_line: &str) {
-        // Extract the target directory path (skip "cd ")
-        let new_dir = &command_line[3..].trim();
+    fn handle_cd_command(&mut self, args: &[&str]) {
+        let new_dir = &args[0];
 
         if new_dir.is_empty() {
-            println!("Usage: cd <directory>");
+            debug!(
+                self.logger,
+                "'cd' command requires a directory as an argument [cd <directory>]."
+            );
             return;
         }
 
-        // Use std::env::set_current_dir to change the CWD of the Rust process
         match env::set_current_dir(new_dir) {
             Ok(()) => {
-                println!("Changed directory to {}", new_dir);
+                debug!(self.logger, "Changed directory to '{}'.", new_dir);
                 self.set_current_dir();
-                // Optional: Update Mbash's internal current_path field here if you were tracking it
             }
             Err(e) => {
-                eprintln!("Failed to change directory to '{}': {}", new_dir, e);
+                error!(
+                    self.logger,
+                    "Failed to change directory to '{}': '{}'.", new_dir, e
+                );
             }
         }
     }
