@@ -43,7 +43,7 @@ impl Mbash {
     fn set_current_dir(&mut self) {
         let current_dir_result = env::current_dir();
         match current_dir_result {
-            Ok(path) => self.current_path = path, 
+            Ok(path) => self.current_path = path,
             Err(e) => {
                 error!(self.logger, "Failed to fetch current directory path. {}", e);
                 self.exit();
@@ -87,6 +87,10 @@ impl Mbash {
                     let first_word = parts[0];
                     if first_word == self.internal_command_prefix {
                         debug!(self.logger, "Received an internal command.");
+                        let command_name = parts[1];
+                        let args = &parts[2..];
+
+                        self.execute_internal_command(command_name, args);
                         continue;
                     }
 
@@ -113,6 +117,13 @@ impl Mbash {
                     continue;
                 }
             }
+        }
+    }
+
+    fn execute_internal_command(&mut self, command_name: &str, args: &[&str]) {
+        if command_name == "init" {
+            helper_functions::attempt_create_file(IGNORE_FILE_NAME);
+            helper_functions::attempt_create_file(TRACKING_FILE_NAME);
         }
     }
 
@@ -188,7 +199,6 @@ impl Mbash {
     }
 
     fn load_file(&self, file_name: &str) {
-        helper_functions::attempt_create_file(file_name);
         // todo
     }
 }
