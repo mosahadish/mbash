@@ -1,5 +1,8 @@
-use logger::{Logger, error, stdout_logger::StdoutLogger};
-use std::{env::set_current_dir, process::{Command, exit}};
+use logger::{Logger, debug, error, stdout_logger::StdoutLogger};
+use std::{
+    env::set_current_dir,
+    process::{Command, exit},
+};
 
 use crate::helper_functions;
 use std::{
@@ -69,7 +72,7 @@ impl Mbash {
                 continue;
             }
             if command_line.is_empty() {
-                continue; // Skip empty input
+                continue; 
             }
 
             self.execute_external_command(command_line);
@@ -88,39 +91,36 @@ impl Mbash {
         let mut command = Command::new(command_name);
         command.args(args);
 
-        println!("Running command: '{}' with args: {:?}", command_name, args);
-
         match command.status() {
             Ok(status) => {
                 if !status.success() {
-                    eprintln!("Command '{}' failed with status: {}", command_name, status);
+                    error!(self.logger, "Command '{}' failed with status: {}", command_name, status);
                 }
             }
             Err(e) => {
-                // This usually happens if the command name itself wasn't found (e.g., 'lst' instead of 'ls')
-                eprintln!("Failed to execute command '{}': {}", command_name, e);
+                error!(self.logger, "Failed to execute command '{}': {}", command_name, e);
             }
         }
     }
 
     fn handle_cd_command(&mut self, command_line: &str) {
-        // Extract the target directory path (skip "cd ")
         let new_dir = &command_line[3..].trim();
 
         if new_dir.is_empty() {
-            println!("Usage: cd <directory>");
+            debug!(self.logger, "'cd' command requires a directory as an argument [cd <directory>].");
             return;
         }
 
-        // Use std::env::set_current_dir to change the CWD of the Rust process
         match env::set_current_dir(new_dir) {
             Ok(()) => {
-                println!("Changed directory to {}", new_dir);
+                debug!(self.logger, "Changed directory to '{}'.", new_dir);
                 self.set_current_dir();
-                // Optional: Update Mbash's internal current_path field here if you were tracking it
             }
             Err(e) => {
-                eprintln!("Failed to change directory to '{}': {}", new_dir, e);
+                error!(
+                    self.logger,
+                    "Failed to change directory to '{}': '{}'.", new_dir, e
+                );
             }
         }
     }
