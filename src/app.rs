@@ -93,7 +93,7 @@ impl Mbash {
                     let command_name = parts[0];
                     let args = &parts[1..];
 
-                    if command_line == self.exit_command {
+                    if command_name == self.exit_command {
                         self.exit();
                         info!(
                             self.logger,
