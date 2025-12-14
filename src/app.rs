@@ -81,7 +81,7 @@ impl Mbash {
                             self.logger,
                             "Splitting the input using whitespaces resulted in an empty vector."
                         );
-                        return;
+                        continue;
                     }
 
                     let first_word = parts[0];
