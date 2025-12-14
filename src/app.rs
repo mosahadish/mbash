@@ -75,38 +75,7 @@ impl Mbash {
                         continue;
                     }
 
-                    let parts: Vec<&str> = command_line.split_whitespace().collect();
-                    if parts.is_empty() {
-                        debug!(
-                            self.logger,
-                            "Splitting the input using whitespaces resulted in an empty vector."
-                        );
-                        continue;
-                    }
-
-                    let first_word = parts[0];
-                    if first_word == self.internal_command_prefix {
-                        debug!(self.logger, "Received an internal command.");
-                        let command_name = parts[1];
-                        let args = &parts[2..];
-
-                        self.execute_internal_command(command_name, args);
-                        continue;
-                    }
-
-                    let command_name = parts[0];
-                    let args = &parts[1..];
-
-                    if command_name == self.exit_command {
-                        self.exit();
-                        info!(
-                            self.logger,
-                            "Received '{}' command, exiting mbash.", self.exit_command
-                        );
-                        break;
-                    }
-
-                    self.execute_external_command(command_name, args);
+                    self.handle_input(command_line);
                 }
                 Err(e) => {
                     error!(
@@ -118,6 +87,41 @@ impl Mbash {
                 }
             }
         }
+    }
+
+    fn handle_input(&mut self, input_line: &str) {
+        let parts: Vec<&str> = input_line.split_whitespace().collect();
+        if parts.is_empty() {
+            debug!(
+                self.logger,
+                "Splitting the input using whitespaces resulted in an empty vector."
+            );
+            return;
+        }
+
+        let first_word = parts[0];
+        if first_word == self.internal_command_prefix {
+            debug!(self.logger, "Received an internal command.");
+            let command_name = parts[1];
+            let args = &parts[2..];
+
+            self.execute_internal_command(command_name, args);
+            return;
+        }
+
+        let command_name = parts[0];
+        let args = &parts[1..];
+
+        if command_name == self.exit_command {
+            self.exit();
+            info!(
+                self.logger,
+                "Received '{}' command, exiting mbash.", self.exit_command
+            );
+            return;
+        }
+
+        self.execute_external_command(command_name, args);
     }
 
     fn execute_internal_command(&mut self, command_name: &str, args: &[&str]) {
