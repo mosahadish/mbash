@@ -53,29 +53,46 @@ impl Mbash {
     pub fn run(&mut self) {
         while !self.exiting.load(Ordering::Relaxed) {
             print!("mbash@ {}: ", self.current_path.display());
-            io::stdout().flush().expect("Failed to flush stdout");
+
+            let flush_result = io::stdout().flush();
+            match flush_result {
+                Ok(_) => (),
+                Err(e) => {
+                    error!(self.logger, "Flush failed due to an error {}", e);
+                    continue;
+                }
+            }
 
             let mut input = String::new();
 
-            io::stdin()
-                .read_line(&mut input)
-                .expect("Failed to read line");
+            let read_result = io::stdin().read_line(&mut input);
+            match read_result {
+                Ok(_) => {
+                    let command_line = input.trim();
+                    if command_line == "exit" {
+                        self.exit();
+                        break;
+                    }
 
-            let command_line = input.trim();
-            if command_line == "exit" {
-                self.exit();
-                break;
-            }
+                    if command_line.starts_with("cd") {
+                        self.handle_cd_command(command_line);
+                        continue;
+                    }
+                    if command_line.is_empty() {
+                        continue;
+                    }
 
-            if command_line.starts_with("cd") {
-                self.handle_cd_command(command_line);
-                continue;
-            }
-            if command_line.is_empty() {
-                continue; 
-            }
+                    self.execute_external_command(command_line);
+                }
+                Err(e) => {
+                    error!(
+                        self.logger,
+                        "Failed to read user input due to an error '{}'.", e
+                    );
 
-            self.execute_external_command(command_line);
+                    continue;
+                }
+            }
         }
     }
 
@@ -94,11 +111,17 @@ impl Mbash {
         match command.status() {
             Ok(status) => {
                 if !status.success() {
-                    error!(self.logger, "Command '{}' failed with status: {}", command_name, status);
+                    error!(
+                        self.logger,
+                        "Command '{}' failed with status: {}", command_name, status
+                    );
                 }
             }
             Err(e) => {
-                error!(self.logger, "Failed to execute command '{}': {}", command_name, e);
+                error!(
+                    self.logger,
+                    "Failed to execute command '{}': {}", command_name, e
+                );
             }
         }
     }
@@ -107,7 +130,10 @@ impl Mbash {
         let new_dir = &command_line[3..].trim();
 
         if new_dir.is_empty() {
-            debug!(self.logger, "'cd' command requires a directory as an argument [cd <directory>].");
+            debug!(
+                self.logger,
+                "'cd' command requires a directory as an argument [cd <directory>]."
+            );
             return;
         }
 
