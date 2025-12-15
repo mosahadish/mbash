@@ -139,8 +139,13 @@ impl Mbash {
     fn execute_internal_command(&mut self, command_name: &str, args: &[&str]) {
         debug!(self.logger, "Received internal '{}' command.", command_name);
         if command_name == "init" {
-            helper_functions::attempt_create_file(IGNORE_FILE_NAME);
-            helper_functions::attempt_create_file(TRACKING_FILE_NAME);
+            // TODO
+            _ = helper_functions::attempt_create_file(IGNORE_FILE_NAME);
+            _ = helper_functions::attempt_create_file(TRACKING_FILE_NAME);
+            return;
+        }
+        if command_name == "cd" {
+            self.cd(args);
         }
     }
 
@@ -148,40 +153,14 @@ impl Mbash {
         debug!(self.logger, "Received external '{}' command.", command_name);
 
         if command_name.starts_with("cd") {
-            self.handle_cd_command(args);
+            self.cd(args);
             return;
-        }
-
-        let mut command = Command::new(command_name);
-        command.args(args);
-
-        match command.status() {
-            Ok(status) => {
-                if !status.success() {
-                    error!(
-                        self.logger,
-                        "Command '{}' failed with status: {}", command_name, status
-                    );
-                    return;
-                }
-
-                debug!(
-                    self.logger,
-                    "Command '{} suceeeded with status '{}'.", command_name, status
-                );
-            }
-            Err(e) => {
-                error!(
-                    self.logger,
-                    "Failed to execute command '{}': {}", command_name, e
-                );
-            }
         }
     }
 
-    fn handle_cd_command(&mut self, args: &[&str]) {
+    fn cd(&mut self, args: &[&str]) {
+        debug!(self.logger, "huh");
         let new_dir = &args[0];
-
         if new_dir.is_empty() {
             debug!(
                 self.logger,
