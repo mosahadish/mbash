@@ -128,6 +128,8 @@ impl Mbash {
                 self.logger,
                 "Received '{}' command, exiting mbash.", self.exit_command
             );
+
+            self.exit();
             return;
         }
 
@@ -207,7 +209,7 @@ impl Mbash {
             return;
         }
 
-        self.exiting.load(Ordering::Relaxed);
+        self.exiting.store(true, Ordering::Relaxed);
     }
 
     fn load_tracking_file(&mut self) -> io::Result<()> {
