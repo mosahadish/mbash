@@ -213,6 +213,7 @@ impl Mbash {
     }
 
     fn load_tracking_file(&mut self) -> io::Result<()> {
+        let _ = helper_functions::attempt_create_file(TRACKING_FILE_NAME)?;
         let read_result = fs::read_to_string(TRACKING_FILE_NAME);
         match read_result {
             Ok(file_contents) => {
