@@ -152,9 +152,49 @@ impl Mbash {
     fn execute_external_command(&mut self, command_name: &str, args: &[&str]) {
         debug!(self.logger, "Received external '{}' command.", command_name);
 
-        if command_name.starts_with("cd") {
+        if command_name == "cd" {
             self.cd(args);
             return;
+        }
+        if command_name == "ls" {
+            self.list_files(args)
+        }
+    }
+
+    fn list_files(&mut self, args: &[&str]) {
+        match std::fs::read_dir(&self.current_path) {
+            Ok(entries) => {
+                for entry_result in entries {
+                    match entry_result {
+                        Ok(entry) => {
+                            let file_name = entry.file_name();
+                            let file_type_result = entry.file_type();
+                            match file_type_result {
+                                Ok(file_type) => {
+                                    let is_dir = file_type.is_dir();
+                                    if is_dir {
+                                        println!("{} [DIR]", file_name.to_string_lossy(),);
+                                    }
+                                }
+                                Err(e) => {
+                                    debug!(self.logger, "Failed determining whether '{}' is a dir or not due to an error '{}'", file_name.to_string_lossy(), e);
+                                    println!("{} [?]", file_name.to_string_lossy());
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!(self.logger, "Error reading file entry: {}", e);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                error!(
+                    self.logger,
+                    "Failed to read current directory's contents due to an error '{}'. 'ls' command failed.",
+                    e
+                );
+            }
         }
     }
 
