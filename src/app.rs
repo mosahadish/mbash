@@ -1,5 +1,9 @@
+use anyhow::{Context, Result, anyhow};
 use logger::{Logger, debug, error, info};
-use std::process::Command;
+use std::{
+    fs,
+    process::{Command, ExitCode, exit},
+};
 
 use crate::helper_functions;
 use std::{
@@ -18,6 +22,7 @@ const IGNORE_FILE_NAME: &str = ".mignoring";
 pub struct Mbash {
     exiting: Arc<AtomicBool>,
     current_path: PathBuf,
+    tracking_files: Vec<String>,
     logger: Box<dyn Logger>,
     internal_command_prefix: &'static str,
     exit_command: &'static str,
@@ -30,14 +35,17 @@ impl Mbash {
             current_path: PathBuf::new(),
             logger: logger,
             internal_command_prefix: "m",
+            tracking_files: Vec::new(),
             exit_command: "exit",
         }
     }
 
-    pub fn setup(&mut self) {
+    pub fn setup(&mut self) -> Result<()> {
         self.set_current_dir();
-        self.load_file(TRACKING_FILE_NAME);
-        self.load_file(IGNORE_FILE_NAME);
+        self.load_tracking_file()
+            .context("Failed to setup mbash, failed to load tracking file.")?;
+
+        Ok(())
     }
 
     fn set_current_dir(&mut self) {
@@ -202,7 +210,24 @@ impl Mbash {
         self.exiting.load(Ordering::Relaxed);
     }
 
-    fn load_file(&self, file_name: &str) {
-        // todo
+    fn load_tracking_file(&mut self) -> io::Result<()> {
+        let read_result = fs::read_to_string(TRACKING_FILE_NAME);
+        match read_result {
+            Ok(file_contents) => {
+                if file_contents.is_empty() {
+                    debug!(self.logger, "Currently not tracking anything.");
+                    return Ok(());
+                }
+
+                let parts = file_contents.split("\n");
+                for part in parts {
+                    debug!(self.logger, "Tracking '{}'", part);
+                    self.tracking_files.push(part.to_string());
+                }
+
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 }
