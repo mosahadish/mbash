@@ -49,7 +49,7 @@ impl Mbash {
     }
 
     pub fn setup(&mut self) -> Result<()> {
-        self.set_current_dir()
+        self.get_current_dir()
             .context("Failed to setup mbash, failed to set current dir.")?;
         self.load_tracking_file()
             .context("Failed to setup mbash, failed to load tracking file.")?;
@@ -57,7 +57,7 @@ impl Mbash {
         Ok(())
     }
 
-    fn set_current_dir(&mut self) -> Result<()> {
+    fn get_current_dir(&mut self) -> Result<()> {
         let current_dir_result = env::current_dir();
         match current_dir_result {
             Ok(path) => {
@@ -217,7 +217,7 @@ fn cd(mbash: &mut Mbash, args: &[&str]) {
     match env::set_current_dir(new_dir) {
         Ok(()) => {
             debug!(mbash.logger, "Changed directory to '{}'.", new_dir);
-            mbash.set_current_dir();
+            _ = mbash.get_current_dir();
         }
         Err(e) => {
             error!(
