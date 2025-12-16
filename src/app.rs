@@ -173,6 +173,8 @@ fn list_files(mbash: &mut Mbash, args: &[&str]) {
                                 let is_dir = file_type.is_dir();
                                 if is_dir {
                                     println!("{} [DIR]", file_name.to_string_lossy(),);
+                                } else {
+                                    println!("{}", file_name.to_string_lossy(),);
                                 }
                             }
                             Err(e) => {
