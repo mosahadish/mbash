@@ -37,6 +37,7 @@ impl Mbash {
         command_map.insert("cd".to_string(), cd);
         command_map.insert("init".to_string(), init);
         command_map.insert("exit".to_string(), exit);
+        command_map.insert("rm".to_string(), remove);
 
         Mbash {
             exiting: Arc::new(AtomicBool::new(false)),
@@ -240,4 +241,79 @@ fn exit(mbash: &mut Mbash, args: &[&str]) {
     }
 
     mbash.exiting.store(true, Ordering::Relaxed);
+}
+
+fn remove(mbash: &mut Mbash, args: &[&str]) {
+    let file_to_remove = args[0];
+    let meta_data_result = fs::metadata(file_to_remove);
+    match meta_data_result {
+        Ok(meta_data) => {
+            if meta_data.is_dir() {
+                remove_dir(mbash, file_to_remove);
+            } else {
+                remove_file(mbash, file_to_remove);
+            }
+        }
+        Err(e) => {
+            error!(
+                mbash.logger,
+                "Fail to remove '{}' due to an error '{}'.", file_to_remove, e
+            );
+        }
+    }
+
+    fn remove_dir(mbash: &mut Mbash, file_to_remove: &str) {
+        let mut keep_asking = true;
+        while keep_asking {
+            println!(
+                "\nThe file you're trying to delete '{file_to_remove}' is a directory. Continuing will remove the directory and all its contents, are you sure you want to continue? [y/n]"
+            );
+            let mut input = String::new();
+            let read_result = io::stdin().read_line(&mut input);
+            let trimmed_input = input.trim();
+            match read_result {
+                Ok(_) => {
+                    if trimmed_input == "y" {
+                        keep_asking = false;
+                        continue;
+                    }
+                    if trimmed_input == "n" {
+                        return;
+                    }
+
+                    error!(mbash.logger, "Please answer either 'y' or 'n'.");
+                }
+                Err(e) => {
+                    error!(
+                        mbash.logger,
+                        "An error occued while trying to read user input: '{}'.", e
+                    );
+                }
+            }
+        }
+
+        let removal_result = std::fs::remove_dir_all(file_to_remove);
+        match removal_result {
+            Ok(_) => info!(mbash.logger, "Successfully removed '{}'.", file_to_remove),
+            Err(e) => {
+                error!(
+                    mbash.logger,
+                    "Fail to remove '{}' due to an error '{}'.", file_to_remove, e
+                );
+            }
+        }
+    }
+
+    fn remove_file(mbash: &mut Mbash, file_to_remove: &str) {
+        let removal_result = std::fs::remove_file(file_to_remove);
+        match removal_result {
+            Ok(_) => info!(mbash.logger, "Successfully removed '{}'.", file_to_remove),
+            Err(e) => {
+                error!(
+                    mbash.logger,
+                    "Fail to remove '{}' due to an error '{}'.", file_to_remove, e
+                );
+            }
+        }
+    }
 }
