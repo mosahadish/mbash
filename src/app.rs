@@ -135,41 +135,7 @@ impl Mbash {
         if self.commands.contains_key(command_name) {
             self.commands[command_name](self, args);
         }
-        // if command_name == self.exit_command {
-        //     self.exit();
-        //     info!(
-        //         self.logger,
-        //         "Received '{}' command, exiting mbash.", self.exit_command
-        //     );
-
-        //     self.exit();
-        //     return;
-        // }
-
-        // self.execute_external_command(command_name, args);
     }
-
-    // fn execute_internal_command(&mut self, command_name: &str, args: &[&str]) {
-    //     debug!(self.logger, "Received internal '{}' command.", command_name);
-    //     if command_name == "init" {
-    //         // TODO
-    //         _ = helper_functions::attempt_create_file(IGNORE_FILE_NAME);
-    //         _ = helper_functions::attempt_create_file(TRACKING_FILE_NAME);
-    //         return;
-    //     }
-    // }
-
-    // fn execute_external_command(&mut self, command_name: &str, args: &[&str]) {
-    //     debug!(self.logger, "Received external '{}' command.", command_name);
-
-    //     if command_name == "cd" {
-    //         self.cd(args);
-    //         return;
-    //     }
-    //     if command_name == "ls" {
-    //         list_files(self, args);
-    //     }
-    // }
 
     fn load_tracking_file(&mut self) -> io::Result<()> {
         let _ = helper_functions::attempt_create_file(TRACKING_FILE_NAME)?;
