@@ -74,7 +74,7 @@ impl Mbash {
 
     pub fn run(&mut self) {
         while !self.exiting.load(Ordering::Relaxed) {
-            print!("mbash@ {}: ", self.current_path.display());
+            info!(self.logger, "mbash@ {}: ", self.current_path.display());
 
             let flush_result = io::stdout().flush();
             match flush_result {
@@ -164,6 +164,8 @@ impl Mbash {
 fn list_files(mbash: &mut Mbash, args: &[&str]) {
     match std::fs::read_dir(&mbash.current_path) {
         Ok(entries) => {
+            // Print an empty line for cohesiveness
+            println!();
             for entry_result in entries {
                 match entry_result {
                     Ok(entry) => {
@@ -179,7 +181,7 @@ fn list_files(mbash: &mut Mbash, args: &[&str]) {
                                 }
                             }
                             Err(e) => {
-                                debug!(
+                                error!(
                                     mbash.logger,
                                     "Failed determining whether '{}' is a dir or not due to an error '{}'",
                                     file_name.to_string_lossy(),
@@ -194,6 +196,9 @@ fn list_files(mbash: &mut Mbash, args: &[&str]) {
                     }
                 }
             }
+
+            // Print an empty line for cohesiveness
+            println!();
         }
         Err(e) => {
             error!(
@@ -240,6 +245,7 @@ fn exit(mbash: &mut Mbash, args: &[&str]) {
         return;
     }
 
+    info!(mbash.logger, "\nExiting mbash..");
     mbash.exiting.store(true, Ordering::Relaxed);
 }
 
@@ -265,7 +271,8 @@ fn remove(mbash: &mut Mbash, args: &[&str]) {
     fn remove_dir(mbash: &mut Mbash, file_to_remove: &str) {
         let mut keep_asking = true;
         while keep_asking {
-            println!(
+            info!(
+                mbash.logger,
                 "\nThe file you're trying to delete '{file_to_remove}' is a directory. Continuing will remove the directory and all its contents, are you sure you want to continue? [y/n]"
             );
             let mut input = String::new();
